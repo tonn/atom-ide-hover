@@ -1,24 +1,27 @@
-import { DisplayMarker, TextEditor, Point } from 'atom';
+import { DisplayMarker, TextEditor, Point, Decoration } from 'atom';
 import etch from 'etch';
+import { fromEvent, merge } from 'rxjs';
+import { debounceTime } from 'rxjs/operators';
 
 import { Timeout$, IsString } from './helpers';
 import { InfinityProgress } from './InfinityProgress.component';
 import { HoverProvidersRegistryInstance } from './HoverProvidersRegistry';
-import { EtchStateless } from './EtchStateless';
 import { EtchComponentBase } from './EtchComponentBase';
 import './array.extend';
 import { HtmlStringView } from './HtmlStringView';
 
 interface PopupViewProperties {
-  marker?: DisplayMarker;
   editor: TextEditor;
   position?: Point;
-  mouseEvent?: MouseEvent;
 }
 
 export class PopupView extends EtchComponentBase<PopupViewProperties> {
   private _showProgress = false;
   private _popupItems: (HTMLElement | String)[] = [];
+
+  private _marker: DisplayMarker | undefined;
+  private _decoration: Decoration | undefined;
+  private _hovered = false;
 
   constructor(props: Partial<PopupViewProperties> = {}, children: etch.EtchComponent<any>[] = []) {
     super(props, children);
@@ -27,6 +30,17 @@ export class PopupView extends EtchComponentBase<PopupViewProperties> {
     etch.initialize(this);
 
     if (!this.element) throw new Error('element is not initialized');
+
+    merge(fromEvent(this.element, 'mouseenter'),
+          fromEvent(this.element, 'mouseleave'))
+    .pipe(debounceTime(500))
+    .subscribe((lastEvent: Event) => {
+      if (lastEvent.type === 'mouseleave') {
+        this._hovered = false;
+      } else if (lastEvent.type === 'mouseenter') {
+        this._hovered = true;
+      }
+    });
   }
 
   private async showProgress$<T>(asyncAction: () => Promise<T>): Promise<T> {
@@ -66,19 +80,18 @@ export class PopupView extends EtchComponentBase<PopupViewProperties> {
   private _refreshes$: Promise<(HTMLElement | String)[]>[] = [];
 
   private async refreshHoverProviders$() {
-    if (!this.properties.position || !this.properties.mouseEvent) {
+    if (!this.properties.position) {
       return;
     }
 
     const position = this.properties.position;
-    const mouseEvent = this.properties.mouseEvent;
 
     const otherRefreshRunning = this._refreshes$.length > 0;
 
     await this.showProgress$(async () => {
-      this._refreshes$.push(
+      this._refreshes$.push( // Show only last requested hover
         Promise.all(
-          HoverProvidersRegistryInstance.Providers.map(provider => provider.Get$(this.properties.editor, position, mouseEvent))
+          HoverProvidersRegistryInstance.Providers.map(provider => provider.Get$(this.properties.editor, position))
         )
         .then(result => result.flatMap(v => v))
       );
@@ -126,14 +139,52 @@ export class PopupView extends EtchComponentBase<PopupViewProperties> {
     );
   }
 
+  updateDecoration() {
+    if (this.properties.position) {
+      this.Close(true);
+
+      this._marker = this.properties.editor.markBufferPosition(this.properties.position, { invalidate: 'never' });
+      this._decoration = this.properties.editor.decorateMarker(this._marker, {
+        type: 'overlay',
+        class: 'datatip-overlay',
+        position: 'tail',
+        item: this.element
+      });
+    }
+  }
+
   update(props: Partial<PopupViewProperties> = {}, children: etch.EtchComponent<any>[] = []) {
+    if (props.editor) {
+      throw Error('PopupView editor changing is dissalowed');
+    }
+
+    const oldPosition = this.properties.position;
+
     Object.assign(this.properties, props);
     this.children = children;
 
-    this._showProgress = true;
+    if (props.position && props.position !== oldPosition) {
+      this.updateDecoration();
 
-    this.refreshHoverProviders$();
+      this._showProgress = true;
+
+      this.refreshHoverProviders$();
+    }
 
     etch.update(this);
+  }
+
+  Close(force = false) {
+    if (!this._hovered || force) {
+      if (this._marker) {
+        this._marker.destroy();
+        this._marker = undefined;
+      }
+
+      if (this._decoration) {
+        this._decoration.destroy();
+        this._decoration = undefined;
+      }
+    }
   }
 }

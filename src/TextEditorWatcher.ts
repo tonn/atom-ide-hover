@@ -1,9 +1,13 @@
-import { TextEditor, Disposable, Decoration } from 'atom';
+import { TextEditor, Disposable } from 'atom';
 import { fromEvent, merge, Subject } from 'rxjs';
-import { takeUntil, debounceTime, map } from 'rxjs/operators';
+import { takeUntil, debounceTime, bufferTime, map, scan } from 'rxjs/operators';
 
 import { FromAtomDisposable, CheckMouseInsideText } from './helpers';
 import { PopupView } from './PopupView';
+
+function isMouseMoveEvent(event: Event): event is MouseEvent {
+  return event.type === 'mousemove';
+}
 
 export class TextEditorWatcher extends Disposable {
   private _destroyed$ = new Subject();
@@ -16,45 +20,27 @@ export class TextEditorWatcher extends Disposable {
 
     const view = atom.views.getView(_textEditor);
 
-    merge(fromEvent<MouseEvent>(view, 'mousemove'),
-          fromEvent<MouseEvent>(view, 'mouseleave'))
-    .pipe(
-      takeUntil(this._destroyed$),
-      debounceTime(500) // TODO: take from config
-    )
-    .subscribe(mouseEvent => {
-      if (mouseEvent.type === 'mouseleave') {
+    const mouseMove = fromEvent<MouseEvent>(view, 'mousemove');
+    const mouseStop = mouseMove.pipe(debounceTime(500)); // TODO: take from config
+    const mouseLeave = fromEvent<MouseEvent>(view, 'mouseleave');
+    const keyDown = fromEvent<KeyboardEvent>(view, 'keydown');
+
+    merge(mouseStop, mouseLeave, keyDown)
+    .pipe(takeUntil(this._destroyed$))
+    .subscribe(event => {
+      if (event.type === 'mouseleave' || event.type === 'keydown') {
+        this._popupView.Close();
         return;
       }
 
+      if (isMouseMoveEvent(event)) {
       const component = view.getComponent();
-      const position = component.screenPositionForMouseEvent(mouseEvent);
+        const screenPosition = component.screenPositionForMouseEvent(event);
+        const bufferPosition = _textEditor.bufferPositionForScreenPosition(screenPosition);
 
-      if (CheckMouseInsideText(component, position, mouseEvent)) {
-        const point = _textEditor.bufferPositionForScreenPosition(position);
-
-        const marker = _textEditor.markBufferPosition(point, { invalidate: 'never' });
-
-        this._popupView.update({ marker, position: point, mouseEvent });
-
-        const decoration = _textEditor.decorateMarker(marker, {
-          type: 'overlay',
-          class: 'datatip-overlay',
-          position: 'tail',
-          item: this._popupView.element
-        });
-
-        merge(fromEvent(this._popupView.element, 'mouseenter'),
-              fromEvent(this._popupView.element, 'mouseleave'))
-        .pipe(
-          debounceTime(500)
-        )
-        .subscribe((lastEvent: Event) => {
-          if (lastEvent.type === 'mouseleave') {
-            decoration.destroy();
-            marker.destroy();
+        if (CheckMouseInsideText(component, screenPosition, event)) {
+          this._popupView.update({ position: bufferPosition });
           }
-        });
       }
     });
   }
