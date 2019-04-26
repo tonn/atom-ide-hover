@@ -43,6 +43,12 @@ export class TextEditorWatcher extends Disposable {
           }
       }
     });
+
+    merge(mouseLeave, keyDown)
+    .pipe(takeUntil(this._destroyed$))
+    .subscribe(() => {
+      this._popupView.Close();
+    });
   }
 
   disposalAction() {
