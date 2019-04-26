@@ -1,0 +1,27 @@
+@import './_helpers';
+
+.InfinityProgress {
+  @indicator_width: 10px;
+
+  .min-size(100px, 5px);
+  position: relative;
+
+  background: gray;
+
+  &__Indicator {
+    .size(@indicator_width, 100%);
+    position: absolute;
+    background: lightgray;
+
+    @keyframes move {
+      0% { left: 0;  }
+      10% { width: @indicator_width; }
+      50% { width: @indicator_width * 3; }
+      90% { width: @indicator_width; }
+      100% { left: calc(100% - @indicator_width); }
+      //to { right: 0; width: @indicator_width; }
+    }
+
+    animation: move 1s infinite alternate ease-in-out		;
+  }
+}

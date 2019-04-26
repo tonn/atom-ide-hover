@@ -1,0 +1,29 @@
+.size(@width, @height: @width) {
+  width: @width;
+  height: @height;
+}
+
+.min-size(@width, @height: @width) {
+  min-width: @width;
+  min-height: @height;
+}
+
+.flex(@direction: row) {
+  display: flex;
+  flex-direction: @direction;
+}
+
+.flex-hcenter(@direction: row) {
+  .flex(@direction);
+  justify-content: center;
+}
+
+.flex-vcenter(@direction: row) {
+  .flex(@direction);
+  align-items: center;
+}
+
+.flex-center(@direction: row) {
+  .flex-hcenter(@direction);
+  .flex-vcenter(@direction);
+}

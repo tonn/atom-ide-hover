@@ -1,0 +1,25 @@
+@import "ui-variables";
+@import "syntax-variables";
+@import "./_helpers";
+
+@spacing: 12px;
+
+.PopupView {
+  .flex(column);
+
+  background: @syntax-background-color;
+  color: @syntax-text-color;
+  box-shadow: 0px 1px 4px 0px rgba(0, 0, 0, 1);
+  font-size: 1rem; // some themes set font sizes on the root node
+  position: relative;
+  max-height: 480px;
+  max-width: 640px;
+  overflow: auto;
+  display: block;
+
+  &__Empty {
+    .size(100%);
+    .flex-center;
+    padding: @spacing / 2;
+  }
+}
