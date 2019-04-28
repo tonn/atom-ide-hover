@@ -1,6 +1,6 @@
 import { TextEditor, Disposable } from 'atom';
 import { fromEvent, merge, Subject, bindCallback, combineLatest } from 'rxjs';
-import { takeUntil, debounceTime, map, scan, filter, startWith } from 'rxjs/operators';
+import { takeUntil, debounceTime, map, scan, filter, startWith, distinctUntilChanged } from 'rxjs/operators';
 
 import { FromAtomDisposable, CheckMouseInsideText } from './helpers';
 import { PopupView } from './PopupView';
@@ -39,6 +39,7 @@ export class TextEditorWatcher extends Disposable {
     const mouseMoveNotInPopup = combineLatest(mouseMove, popupHover)
     .pipe(
       filter(([_, popupHovered]) => !popupHovered),
+      distinctUntilChanged(([oldMouseMove], [newMouseMove]) => oldMouseMove === newMouseMove),
       map(([mouseMove]) => mouseMove)
     );
 
@@ -68,8 +69,8 @@ export class TextEditorWatcher extends Disposable {
     const mouseStopInEditor = combineLatest(mouseMoveNotInPopup, editorHover, popupHover)
     .pipe(
       debounceTime(500), // TODO: take from config
+      distinctUntilChanged(([prevMouseMove], [currMouseMove]) => prevMouseMove === currMouseMove),
       filter(([_, editorHover, popupHover]) => {
-        console.log(editorHover, popupHover);
         return editorHover && !popupHover;
       }),
       map(([mouseMove]) => mouseMove)
