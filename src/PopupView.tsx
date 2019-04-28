@@ -1,9 +1,8 @@
 import { DisplayMarker, TextEditor, Point, Decoration } from 'atom';
 import etch from 'etch';
 import { fromEvent, merge } from 'rxjs';
-import { debounceTime } from 'rxjs/operators';
 
-import { Timeout$, IsString } from './helpers';
+import { Timeout$, IsString, IsHTMLElement } from './helpers';
 import { InfinityProgress } from './InfinityProgress.component';
 import { HoverProvidersRegistryInstance } from './HoverProvidersRegistry';
 import { EtchComponentBase } from './EtchComponentBase';
@@ -72,11 +71,18 @@ export class PopupView extends EtchComponentBase<PopupViewProperties> {
   }
 
   private renderItem(item: HTMLElement | String) {
+    let result: JSX.Element = <div />;
+
     if (IsString(item)) {
-      return <HtmlStringView html={item} />;
+      result = <HtmlStringView html={item} />;
+    } else if (IsHTMLElement(item)) {
+      const html = item.innerHTML; // TODO: move element insted using innerHTML
+      item.remove();
+
+      result = <HtmlStringView html={html} />;
     }
 
-    return '';
+    return <div class='PopupView__Item'>{result}</div>;
   }
 
   private renderItems() {

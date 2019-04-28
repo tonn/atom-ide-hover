@@ -34,3 +34,7 @@ export function Timeout$(duration: number): Promise<void> {
 export function IsString(x: any): x is string {
   return typeof x === 'string';
 }
+
+export function IsHTMLElement(x: any): x is HTMLElement {
+  return 'addEventListener' in x;
+}
