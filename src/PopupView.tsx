@@ -13,6 +13,7 @@ import { HtmlStringView } from './HtmlStringView';
 interface PopupViewProperties {
   editor: TextEditor;
   position?: Point;
+  onHover?: (hovered: boolean) => void;
 }
 
 export class PopupView extends EtchComponentBase<PopupViewProperties> {
@@ -21,7 +22,6 @@ export class PopupView extends EtchComponentBase<PopupViewProperties> {
 
   private _marker: DisplayMarker | undefined;
   private _decoration: Decoration | undefined;
-  private _hovered = false;
 
   constructor(props: Partial<PopupViewProperties> = {}, children: etch.EtchComponent<any>[] = []) {
     super(props, children);
@@ -31,14 +31,20 @@ export class PopupView extends EtchComponentBase<PopupViewProperties> {
 
     if (!this.element) throw new Error('element is not initialized');
 
+    // Make onHover event
     merge(fromEvent(this.element, 'mouseenter'),
           fromEvent(this.element, 'mouseleave'))
-    .pipe(debounceTime(500))
     .subscribe((lastEvent: Event) => {
+      let hovered = false;
+
       if (lastEvent.type === 'mouseleave') {
-        this._hovered = false;
+        hovered = false;
       } else if (lastEvent.type === 'mouseenter') {
-        this._hovered = true;
+        hovered = true;
+      }
+
+      if (this.properties.onHover) {
+        this.properties.onHover(hovered);
       }
     });
   }
@@ -141,7 +147,7 @@ export class PopupView extends EtchComponentBase<PopupViewProperties> {
 
   updateDecoration() {
     if (this.properties.position) {
-      this.Close(true);
+      this.Close();
 
       this._marker = this.properties.editor.markBufferPosition(this.properties.position, { invalidate: 'never' });
       this._decoration = this.properties.editor.decorateMarker(this._marker, {
@@ -174,17 +180,19 @@ export class PopupView extends EtchComponentBase<PopupViewProperties> {
     etch.update(this);
   }
 
-  Close(force = false) {
-    if (!this._hovered || force) {
-      if (this._marker) {
-        this._marker.destroy();
-        this._marker = undefined;
-      }
-
-      if (this._decoration) {
-        this._decoration.destroy();
-        this._decoration = undefined;
-      }
+  Close() {
+    if (this._marker) {
+      this._marker.destroy();
+      this._marker = undefined;
     }
+
+    if (this._decoration) {
+      this._decoration.destroy();
+      this._decoration = undefined;
+    }
+  }
+
+  get IsVisible(): boolean {
+    return !!this._decoration;
   }
 }
