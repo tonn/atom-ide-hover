@@ -190,6 +190,8 @@ export class PopupView extends EtchComponentBase<PopupViewProperties> {
       this._decoration.destroy();
       this._decoration = undefined;
     }
+
+    this._popupItems = [];
   }
 
   get IsVisible(): boolean {
