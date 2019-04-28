@@ -1,4 +1,4 @@
-import { TextEditor, Disposable } from 'atom';
+import { TextEditor, Disposable, CompositeDisposable } from 'atom';
 import { fromEvent, merge, Subject, bindCallback, combineLatest } from 'rxjs';
 import { takeUntil, debounceTime, map, scan, filter, startWith, distinctUntilChanged } from 'rxjs/operators';
 
@@ -21,10 +21,13 @@ function fromPopupViewHoverEvent(popup: PopupView) {
 
 export class TextEditorWatcher extends Disposable {
   private _destroyed$ = new Subject();
+  private _disposables = new CompositeDisposable();
   private _popupView = new PopupView({ editor: this._textEditor });
 
   constructor (private _textEditor: TextEditor) {
     super();
+
+    this.setupKeybindings();
 
     FromAtomDisposable(_textEditor.onDidDestroy.bind(_textEditor)).subscribe(() => this.dispose());
 
@@ -111,7 +114,22 @@ export class TextEditorWatcher extends Disposable {
     });
   }
 
+  private setupKeybindings() {
+    this._disposables.add(
+      atom.commands.add('atom-text-editor', { // TODO: move to upper level
+        'atom-ide-hover:toggle': (evt) => {
+          const editor = evt.currentTarget.getModel();
+          if (editor === this._textEditor) {
+            const position = evt.currentTarget.getModel().getCursorBufferPosition();
+            this._popupView.update({ position });
+          }
+        }
+      })
+    );
+  }
+
   disposalAction() {
     this._destroyed$.complete();
+    this._disposables.dispose();
   }
 }
