@@ -191,6 +191,10 @@ export class PopupView extends EtchComponentBase<PopupViewProperties> {
       this._decoration = undefined;
     }
 
+    if (this.properties.onHover) {
+      this.properties.onHover(false);
+    }
+
     this._popupItems = [];
   }
 
