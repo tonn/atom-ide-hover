@@ -84,12 +84,15 @@ export class TextEditorWatcher extends Disposable {
     .pipe(takeUntil(this._destroyed$))
     .subscribe(event => {
       const component = view.getComponent();
-      const screenPosition = component.screenPositionForMouseEvent(event);
-      const bufferPosition = _textEditor.bufferPositionForScreenPosition(screenPosition);
 
-      if (CheckMouseInsideText(component, screenPosition, event)) {
-        this._popupView.update({ position: bufferPosition });
-        stopHidePopupTimeout();
+      if (component) {
+        const screenPosition = component.screenPositionForMouseEvent(event);
+        const bufferPosition = _textEditor.bufferPositionForScreenPosition(screenPosition);
+
+        if (CheckMouseInsideText(component, screenPosition, event)) {
+          this._popupView.update({ position: bufferPosition });
+          stopHidePopupTimeout();
+        }
       }
     });
 
