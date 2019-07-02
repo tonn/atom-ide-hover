@@ -9,6 +9,27 @@ import { EtchComponentBase } from './EtchComponentBase';
 import './array.extend';
 import { HtmlStringView } from './HtmlStringView';
 
+export interface HTMLElementViewProperties {
+  Element: HTMLElement;
+}
+
+export class HTMLElementView extends EtchComponentBase<HTMLElementViewProperties> {
+  constructor(props: Partial<HTMLElementViewProperties>) {
+    super();
+
+    if (props.Element) {
+      this.element.appendChild(props.Element);
+    }
+  }
+
+  render(): JSX.Element {
+    return (
+      <div>
+      </div>
+    );
+  }
+}
+
 interface PopupViewProperties {
   editor: TextEditor;
   position?: Point;
@@ -76,10 +97,7 @@ export class PopupView extends EtchComponentBase<PopupViewProperties> {
     if (IsString(item)) {
       result = <HtmlStringView html={item} />;
     } else if (IsHTMLElement(item)) {
-      const html = item.innerHTML; // TODO: move element insted using innerHTML
-      item.remove();
-
-      result = <HtmlStringView html={html} />;
+      result = <HTMLElementView Element={item} />;
     }
 
     return <div class='PopupView__Item'>{result}</div>;
