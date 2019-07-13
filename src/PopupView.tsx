@@ -107,40 +107,39 @@ export class PopupView extends EtchComponentBase<PopupViewProperties> {
     return this._popupItems ? this._popupItems.map(item => this.renderItem(item)) : '';
   }
 
-  private _refreshes$: Promise<(HTMLElement | String)[]>[] = [];
+  private _refreshInProcess: boolean = false;
+  private _needRefreshAgain: boolean = false;
 
   private async refreshHoverProviders$() {
-    if (!this.properties.position) {
+    const { position, editor } = this.properties;
+
+    if (!position) {
       return;
     }
 
-    const position = this.properties.position;
+    if (this._refreshInProcess) {
+      this._needRefreshAgain = true;
+      return;
+    }
 
-    const otherRefreshRunning = this._refreshes$.length > 0;
+    this._refreshInProcess = true;
 
-    await this.showProgress$(async () => {
-      this._refreshes$.push( // Show only last requested hover
-        Promise.all(
-          HoverProvidersRegistryInstance.Providers.map(provider => provider.Get$(this.properties.editor, position))
-        )
-        .then(result => result.flatMap(v => v))
-      );
+    const result: (String | HTMLElement)[] = [];
 
-      if (!otherRefreshRunning) {
-        let result: (HTMLElement | String)[] = [];
+    for (const provider of HoverProvidersRegistryInstance.Providers) {
+      result.push(... await provider.Get$(editor, position));
+    }
 
-        for (let promise of this._refreshes$) {
-          result = await promise;
-        }
+    this._popupItems = result;
 
-        this._popupItems = result;
+    await etch.update(this);
 
-        this._refreshes$ = [];
+    this._refreshInProcess = false;
 
-        await etch.update(this);
-      }
-
-    });
+    if (this._needRefreshAgain) {
+      this._needRefreshAgain = false;
+      await this.refreshHoverProviders$();
+    }
   }
 
   private renderEmpty() {
@@ -196,9 +195,9 @@ export class PopupView extends EtchComponentBase<PopupViewProperties> {
     if (props.position && props.position !== oldPosition) {
       this.updateDecoration();
 
-      this._showProgress = true;
-
-      this.refreshHoverProviders$();
+      this.showProgress$(async () => {
+        await this.refreshHoverProviders$();
+      });
     }
 
     etch.update(this);
@@ -224,5 +223,9 @@ export class PopupView extends EtchComponentBase<PopupViewProperties> {
 
   get IsVisible(): boolean {
     return !!this._decoration;
+  }
+
+  focus() {
+    this.element.focus();
   }
 }
